@@ -1,0 +1,32 @@
+services:
+  web:
+    build: .
+    ports:
+      - "8000:8000"
+    depends_on:
+      db:
+        condition: service_healthy
+    env_file:
+      - .env
+    environment:
+      - DATABASE_URL=${DATABASE_URL_DOCKER}
+  db:
+    env_file:
+      - .env    
+    image: postgres:16
+    volumes:
+      - forum_pgdata:/var/lib/postgresql/data
+    environment:
+      POSTGRES_USER: forum_user
+      POSTGRES_PASSWORD: forum_pass
+      POSTGRES_DB: forum_db
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U forum_user -d forum_db"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+    ports: 
+      - "5432:5432"
+
+volumes:
+  forum_pgdata:
