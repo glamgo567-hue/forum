@@ -1,4 +1,4 @@
-from sqlalchemy import CheckConstraint, ForeignKey, UniqueConstraint
+from sqlalchemy import CheckConstraint, ForeignKey, Index, text
 from sqlalchemy.orm import Mapped, mapped_column
 
 from app.models.base_model import Base
@@ -13,7 +13,14 @@ class Vote(Base):
     question_id: Mapped[int | None] = mapped_column(ForeignKey("questions.id"))
     answer_id: Mapped[int | None] = mapped_column(ForeignKey("answers.id"))
 
-    __table_args__ = (UniqueConstraint("user_id", "question_id", "answer_id"),
+    __table_args__ = (Index("ix_vote_user_question_unique",
+                            "user_id", "question_id",
+                            unique=True,
+                            postgresql_where=text("question_id IS NOT NULL")),
+                      Index("ix_vote_user_answer_unique",
+                            "user_id", "answer_id",
+                            unique=True,
+                            postgresql_where=text("answer_id IS NOT NULL")),
                       CheckConstraint(
                         "(question_id IS NOT NULL AND answer_id IS NULL) OR"
                         "(question_id IS NULL AND answer_id IS NOT NULL)",
