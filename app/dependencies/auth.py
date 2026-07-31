@@ -14,8 +14,7 @@ async def get_current_user(token: str = Depends(oauth2_scheme), db: AsyncSession
     if payload is None:
         raise HTTPException(status_code=401, detail="Could not validate credentials")       
     user_id = int(payload.get("sub"))
-    query = await db.execute(select(User).where(User.id == user_id))
-    result = query.scalar_one_or_none()   
-    if result is None:
+    query = (await db.execute(select(User).where(User.id == user_id))).scalar_one_or_none()
+    if query is None:
         raise HTTPException(status_code=401, detail="User not found")
-    return result
+    return query
