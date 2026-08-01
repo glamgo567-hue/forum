@@ -18,3 +18,19 @@ async def get_current_user(token: str = Depends(oauth2_scheme), db: AsyncSession
     if query is None:
         raise HTTPException(status_code=401, detail="User not found")
     return query
+
+oauth2_scheme_optional = OAuth2PasswordBearer(tokenUrl="auth/login", auto_error=False)
+
+async def get_current_user_optional(token: str | None = Depends(oauth2_scheme_optional), 
+                                    db: AsyncSession = Depends(get_db)):
+    if token is None:
+        return None
+    payload = decode_access_token(token)
+    if payload is None:
+        return None
+    user_id = int(payload.get("sub"))
+    query = (await db.execute(select(User).where(User.id == user_id))).scalar_one_or_none()
+    if query is None:
+        return None
+    return query
+     

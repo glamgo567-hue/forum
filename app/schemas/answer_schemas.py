@@ -14,6 +14,8 @@ class AnswerRead(BaseModel):
     created_at: datetime
     author_id: int
     question_id: int
+    score: int
+    my_vote: int | None = None  
 
     model_config={"from_attributes": True}
 

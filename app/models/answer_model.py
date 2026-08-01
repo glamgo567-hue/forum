@@ -14,7 +14,7 @@ class Answer(Base):
     created_at: Mapped[datetime] = mapped_column(server_default=func.now())
 
     author_id: Mapped[int] = mapped_column(ForeignKey("users.id"))
-    question_id: Mapped[int] = mapped_column(ForeignKey("questions.id"))
+    question_id: Mapped[int] = mapped_column(ForeignKey("questions.id", ondelete="CASCADE"))
 
     author = relationship("User", back_populates="answers")
     question = relationship("Question", back_populates="answers")
