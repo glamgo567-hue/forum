@@ -12,7 +12,7 @@ class UserRegister(BaseModel):
     @model_validator(mode="after")
     def password_match(self):
         if self.password != self.confirm_password:
-            raise ValueError("Пароли не совпадают")
+            raise ValueError("Passwords don't match")
         return self
 
 class UserRead(BaseModel):

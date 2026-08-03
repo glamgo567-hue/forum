@@ -12,7 +12,6 @@ class Question(Base):
     id: Mapped[int] = mapped_column(primary_key=True)
     title:  Mapped[str] = mapped_column(String(100))
     body: Mapped[str] = mapped_column(Text)
-    views: Mapped[int] = mapped_column(default=0)
     created_at: Mapped[datetime] = mapped_column(server_default=func.now())
     author_id: Mapped[int] = mapped_column(ForeignKey("users.id"))
 

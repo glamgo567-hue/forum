@@ -9,6 +9,7 @@ from app.models.question_model import Question
 from app.models.user_model import User
 from app.models.vote_model import Vote
 from app.schemas.answer_schemas import AnswerCreate, AnswerRead, AnswerUpdate
+from app.services.reputation_helpers import apply_reputation_change
 from app.services.vote_helpers import get_my_vote, get_score
 
 answer_router = APIRouter(tags=["answers"])
@@ -105,3 +106,32 @@ async def del_answer(answer_id: int,
         raise HTTPException(status_code=403, detail="Not enough permissions")
     await db.delete(answer)
     await db.commit()
+
+@answer_router.patch("/answers/{answer_id}/accept", response_model=AnswerRead)
+async def right_answer(answer_id: int,
+                       current_user: User = Depends(get_current_user),
+                       db: AsyncSession = Depends(get_db)):
+    answer = (await db.execute(select(Answer).where(Answer.id == answer_id))).scalar_one_or_none()
+    if answer is None:
+        raise HTTPException(status_code=404, detail="Answer not found")
+    related_question = (await db.execute(select(Question).where(Question.id == answer.question_id))).scalar_one_or_none()
+    if current_user.id != related_question.author_id:
+        raise HTTPException(status_code=403, detail="Not enough permissions")
+    accepted_answer = (await db.execute(select(Answer).where(Answer.question_id == answer.question_id, Answer.is_accepted == True))).scalar_one_or_none()
+    if accepted_answer is not None and accepted_answer.id != answer.id:
+        accepted_answer.is_accepted = False
+    if accepted_answer is None or accepted_answer.id != answer.id:
+        await apply_reputation_change(db, answer.author_id, 20)
+    answer.is_accepted = True
+    score = await get_score(db, answer_id=answer_id)
+    my_vote = await get_my_vote(db, current_user.id, answer_id=answer_id)
+    await db.commit()
+    await db.refresh(answer)
+    return AnswerRead(id=answer.id,
+                      body=answer.body,
+                      is_accepted=answer.is_accepted,
+                      created_at=answer.created_at,
+                      author_id=answer.author_id,
+                      question_id=answer.question_id,
+                      score=score,
+                      my_vote=my_vote)
