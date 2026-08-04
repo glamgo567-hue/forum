@@ -1,6 +1,7 @@
 from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
+from sqlalchemy.orm import selectinload
 
 from app.dependencies.auth import get_current_user, get_current_user_optional
 from app.dependencies.db import get_db
@@ -33,7 +34,7 @@ async def create_question(quest_data: QuestionCreate,
 
     db.add(new_question)
     await db.commit()
-    await db.refresh(new_question)
+    await db.refresh(new_question, attribute_names=["id", "title", "body", "created_at", "author_id"])
     return QuestionRead(id=new_question.id,
                         title=new_question.title,
                         body=new_question.body,
@@ -49,7 +50,7 @@ async def show_questions(skip: int = 0,
                          tag: str | None = None,
                          current_user: User | None = Depends(get_current_user_optional),
                          db: AsyncSession = Depends(get_db)):
-    query = select(Question)
+    query = select(Question).options(selectinload(Question.tags))
     if tag is not None:
         query = query.join(Question.tags).where(Tag.name == tag)
     query = query.offset(skip).limit(limit)
@@ -80,7 +81,7 @@ async def show_questions(skip: int = 0,
 async def show_question(question_id: int,
                         current_user: User | None = Depends(get_current_user_optional), 
                         db: AsyncSession = Depends(get_db)):
-    question = (await db.execute(select(Question).where(Question.id == question_id))).scalar_one_or_none()
+    question = (await db.execute(select(Question).options(selectinload(Question.tags)).where(Question.id == question_id))).scalar_one_or_none()
     if question is None:
         raise HTTPException(status_code=404, detail="Question not found")
 
@@ -102,7 +103,7 @@ async def patch_question(question_id: int,
                          quest_data: QuestionUpdate,
                          current_user: User = Depends(get_current_user),
                          db: AsyncSession = Depends(get_db)):
-    question = (await db.execute(select(Question).where(Question.id == question_id))).scalar_one_or_none()
+    question = (await db.execute(select(Question).options(selectinload(Question.tags)).where(Question.id == question_id))).scalar_one_or_none()
     if question is None:
         raise HTTPException(status_code=404, detail="Question not found")
     if question.author_id != current_user.id:
