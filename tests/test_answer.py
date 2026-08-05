@@ -33,11 +33,11 @@ async def test_show_answers(client, auth_headers, question):
 async def test_patch_answer(client, auth_headers, question):
     payload_auth = {"username": "glamgo3",
                     "email": "glamgo3@gmail.com",
-                    "password": "1",
-                    "confirm_password": "1"}
+                    "password": "111111111",
+                    "confirm_password": "111111111"}
     await client.post("/auth/register", json=payload_auth)
     payload_log = {"username":"glamgo3",
-                    "password":"1"}
+                    "password":"111111111"}
     response_log = await client.post("/auth/login", data=payload_log)
     token_data = response_log.json()
     token = token_data.get("access_token")
@@ -65,11 +65,11 @@ async def test_patch_answer(client, auth_headers, question):
 async def test_delete_answer(client, auth_headers, question):
     payload_auth = {"username": "glamgo3",
                     "email": "glamgo3@gmail.com",
-                    "password": "1",
-                    "confirm_password": "1"}
+                    "password": "111111111",
+                    "confirm_password": "111111111"}
     await client.post("/auth/register", json=payload_auth)
     payload_log = {"username":"glamgo3",
-                    "password":"1"}
+                    "password":"111111111"}
     response_log = await client.post("/auth/login", data=payload_log)
     token_data = response_log.json()
     token = token_data.get("access_token")

@@ -1,4 +1,5 @@
 from fastapi import FastAPI, status
+from fastapi.middleware.cors import CORSMiddleware
 
 from app.routers.answer_router import answer_router
 from app.routers.answer_vote_router import a_vote_router
@@ -7,6 +8,8 @@ from app.routers.question_router import question_router
 from app.routers.question_vote_router import q_vote_router
 
 app = FastAPI()
+
+app.add_middleware(CORSMiddleware, allow_origins=["http://localhost:5173"], allow_credentials=True, allow_methods=["*"], allow_headers=["*"])
 
 @app.get("/health", status_code=status.HTTP_200_OK)
 async def health_check():

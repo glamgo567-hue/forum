@@ -1,20 +1,25 @@
-from fastapi import APIRouter, Depends, HTTPException, status
+from fastapi import APIRouter, Depends, HTTPException, Query, status
 from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
 
 from app.dependencies.auth import get_current_user, get_current_user_optional
 from app.dependencies.db import get_db
+from app.models.answer_model import Answer
 from app.models.question_model import Question
 from app.models.tag_model import Tag
 from app.models.user_model import User
 from app.models.vote_model import Vote
 from app.schemas.question_schemas import QuestionCreate, QuestionRead, QuestionUpdate
+from app.services.reputation_helpers import (
+    apply_reputation_change,
+    get_reputation_delta,
+)
 from app.services.vote_helpers import get_my_vote, get_score
 
 question_router = APIRouter(prefix="/questions", tags=["questions"])
 
-@question_router.post("/", response_model=QuestionRead, status_code=status.HTTP_201_CREATED)
+@question_router.post("", response_model=QuestionRead, status_code=status.HTTP_201_CREATED)
 async def create_question(quest_data: QuestionCreate,
                           current_user: User = Depends(get_current_user),
                           db: AsyncSession = Depends(get_db)):
@@ -44,15 +49,16 @@ async def create_question(quest_data: QuestionCreate,
                         score=0,
                         my_vote=None)
 
-@question_router.get("/", response_model=list[QuestionRead])
-async def show_questions(skip: int = 0,
-                         limit: int = 10,
+@question_router.get("", response_model=list[QuestionRead])
+async def show_questions(skip: int = Query(0, ge=0),
+                         limit: int = Query(10, ge=1, le=100),
                          tag: str | None = None,
                          current_user: User | None = Depends(get_current_user_optional),
                          db: AsyncSession = Depends(get_db)):
     query = select(Question).options(selectinload(Question.tags))
     if tag is not None:
         query = query.join(Question.tags).where(Tag.name == tag)
+    query = query.order_by(Question.created_at.desc(), Question.id.desc())
     query = query.offset(skip).limit(limit)
 
     questions = (await db.execute(query)).scalars().all()
@@ -135,5 +141,21 @@ async def del_question(question_id: int,
         raise HTTPException(status_code=404, detail="Question not found")
     if question.author_id != current_user.id:
         raise HTTPException(status_code=403, detail="Not enough permissions")
+
+    question_votes = (await db.execute(select(Vote).where(Vote.question_id == question_id))).scalars().all()
+    for v in question_votes:
+        delta = get_reputation_delta(v.value, "question")
+        await apply_reputation_change(db, question.author_id, -delta)
+
+    answers = (await db.execute(select(Answer).where(Answer.question_id == question_id))).scalars().all()
+    answer_ids = [a.id for a in answers]
+    answers_by_id = {a.id: a for a in answers}
+
+    answer_votes = (await db.execute(select(Vote).where(Vote.answer_id.in_(answer_ids)))).scalars().all()
+    for v in answer_votes:
+        delta = get_reputation_delta(v.value, "answer")
+        author_id = answers_by_id[v.answer_id].author_id
+        await apply_reputation_change(db, author_id, -delta)
+
     await db.delete(question)
     await db.commit()

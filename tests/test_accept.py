@@ -18,11 +18,11 @@ async def test_successful_accept(client, auth_headers, question, dop_auth_header
 async def test_switching_accept(client, auth_headers, question, dop_auth_headers):
     payload_auth3 = {"username": "glamgo4",
                  "email": "glamgo4@gmail.com",
-                 "password": "1",
-                 "confirm_password": "1"}
+                 "password": "111111111",
+                 "confirm_password": "111111111"}
     await client.post("/auth/register", json=payload_auth3)
 
-    payload_log3 = {"username": "glamgo4", "password": "1"}
+    payload_log3 = {"username": "glamgo4", "password": "111111111"}
     response_log3 = await client.post("/auth/login", data=payload_log3)
     token3 = response_log3.json().get("access_token")
     tret_auth_headers = {"Authorization": f"Bearer {token3}"}

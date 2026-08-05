@@ -1,13 +1,13 @@
 from datetime import datetime
 
-from pydantic import BaseModel
+from pydantic import BaseModel, Field
 
 from app.schemas.tag_schemas import TagOut
 
 
 class QuestionCreate(BaseModel):
-    title: str 
-    body: str
+    title: str = Field(min_length=1, max_length=100)
+    body: str = Field(min_length=1)
     tags: list[str] = []
 
 class QuestionRead(BaseModel):
@@ -23,5 +23,5 @@ class QuestionRead(BaseModel):
     model_config={"from_attributes": True}
 
 class QuestionUpdate(BaseModel):
-    title: str | None = None
-    body: str | None = None
+    title: str | None = Field(default=None, min_length=1, max_length=100)
+    body: str | None = Field(default=None, min_length=1)

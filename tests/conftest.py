@@ -1,3 +1,5 @@
+import os
+
 from dotenv import load_dotenv
 
 load_dotenv(".env.test", override=True)
@@ -10,7 +12,7 @@ from app.dependencies.db import get_db
 from app.main import app
 from app.models.base_model import Base
 
-engine = create_async_engine("postgresql+asyncpg://forum_user:forum_pass@localhost:5432/forum_test")
+engine = create_async_engine(os.environ["DATABASE_URL"])
 async_session_maker = async_sessionmaker(
     engine,
     class_=AsyncSession,
@@ -39,12 +41,12 @@ async def client(db_schema):
 async def auth_headers(client):
     payload_auth = {"username": "glamgo2",
                     "email": "glamgo@gmail.com",
-                    "password": "1",
-                    "confirm_password": "1"}
+                    "password": "111111111",
+                    "confirm_password": "111111111"}
     await client.post("/auth/register", json=payload_auth)
 
     payload_log = {"username":"glamgo2",
-                    "password":"1"}
+                    "password":"111111111"}
     response_log = await client.post("/auth/login", data=payload_log)
 
     token_data = response_log.json()
@@ -55,12 +57,12 @@ async def auth_headers(client):
 async def dop_auth_headers(client):
     payload_auth = {"username": "glamgo3",
                     "email": "glamgo3@gmail.com",
-                    "password": "1",
-                    "confirm_password": "1"}
+                    "password": "111111111",
+                    "confirm_password": "111111111"}
     await client.post("/auth/register", json=payload_auth)
 
     payload_log = {"username":"glamgo3",
-                    "password":"1"}
+                    "password":"111111111"}
     response_log = await client.post("/auth/login", data=payload_log)
 
     token_data = response_log.json()
@@ -72,7 +74,7 @@ async def question(client, auth_headers):
     payload_question = {"title": "Steak doneness?",
                         "body": "How do I check medium-rare?",
                         "tags": ["cooking"]}
-    response = await client.post("/questions/", json=payload_question, headers=auth_headers)
+    response = await client.post("/questions", json=payload_question, headers=auth_headers)
     return response.json()
 
 @pytest.fixture

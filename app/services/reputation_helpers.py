@@ -1,6 +1,6 @@
 from typing import Literal
 
-from sqlalchemy import select
+from sqlalchemy import update
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.models.user_model import User
@@ -12,7 +12,4 @@ def get_reputation_delta(value: int, target_type: Literal["question", "answer"])
     return -5
 
 async def apply_reputation_change(db: AsyncSession, user_id: int, delta: int) -> None:
-    user = (await db.execute(select(User).where(User.id == user_id))).scalar_one_or_none()
-    if user is None:
-        return
-    user.reputation = user.reputation + delta
+    await db.execute(update(User).where(User.id == user_id).values(reputation=User.reputation + delta))

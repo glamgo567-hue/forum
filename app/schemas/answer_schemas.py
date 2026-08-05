@@ -1,11 +1,10 @@
 from datetime import datetime
 
-from pydantic import BaseModel
+from pydantic import BaseModel, Field
 
 
 class AnswerCreate(BaseModel):
-    body: str
-    question_id: int
+    body: str = Field(min_length=1)
 
 class AnswerRead(BaseModel):
     id: int
@@ -20,4 +19,4 @@ class AnswerRead(BaseModel):
     model_config={"from_attributes": True}
 
 class AnswerUpdate(BaseModel):
-    body: str
+    body: str | None = Field(default=None, min_length=1)

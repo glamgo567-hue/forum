@@ -1,4 +1,4 @@
-from fastapi import APIRouter, Depends, HTTPException, status
+from fastapi import APIRouter, Depends, HTTPException, Query, status
 from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -9,7 +9,10 @@ from app.models.question_model import Question
 from app.models.user_model import User
 from app.models.vote_model import Vote
 from app.schemas.answer_schemas import AnswerCreate, AnswerRead, AnswerUpdate
-from app.services.reputation_helpers import apply_reputation_change
+from app.services.reputation_helpers import (
+    apply_reputation_change,
+    get_reputation_delta,
+)
 from app.services.vote_helpers import get_my_vote, get_score
 
 answer_router = APIRouter(tags=["answers"])
@@ -39,15 +42,15 @@ async def create_answer(answer_data: AnswerCreate,
 
 @answer_router.get("/questions/{question_id}/answers", response_model=list[AnswerRead])
 async def show_answers(question_id: int,
-                       skip: int = 0,
-                       limit: int = 10,
+                       skip: int = Query(0, ge=0),
+                       limit: int = Query(10, ge=1, le=100),
                        current_user: User | None = Depends(get_current_user_optional),
                        db: AsyncSession = Depends(get_db)):
     question = (await db.execute(select(Question).where(Question.id == question_id))).scalar_one_or_none()
     if question is None:
         raise HTTPException(status_code=404, detail="Question not found")
 
-    answers = (await db.execute(select(Answer).where(Answer.question_id == question_id).offset(skip).limit(limit))).scalars().all()
+    answers = (await db.execute(select(Answer).where(Answer.question_id == question_id).order_by(Answer.is_accepted.desc(), Answer.created_at.asc(), Answer.id.asc()).offset(skip).limit(limit))).scalars().all()
     answer_ids = [a.id for a in answers]
 
     scores_dict = {answer_id: score for answer_id, score in (await db.execute(select(Vote.answer_id, func.coalesce(func.sum(Vote.value), 0)).where(Vote.answer_id.in_(answer_ids)).group_by(Vote.answer_id))).all()}
@@ -104,19 +107,25 @@ async def del_answer(answer_id: int,
         raise HTTPException(status_code=404, detail="Answer not found")
     if answer.author_id != current_user.id:
         raise HTTPException(status_code=403, detail="Not enough permissions")
+    votes = (await db.execute(select(Vote).where(Vote.answer_id == answer_id))).scalars().all()
+    for v in votes:
+        delta = get_reputation_delta(v.value, "answer")
+        await apply_reputation_change(db, answer.author_id, -delta)
     await db.delete(answer)
     await db.commit()
 
 @answer_router.patch("/answers/{answer_id}/accept", response_model=AnswerRead)
-async def right_answer(answer_id: int,
+async def accept_answer(answer_id: int,
                        current_user: User = Depends(get_current_user),
                        db: AsyncSession = Depends(get_db)):
     answer = (await db.execute(select(Answer).where(Answer.id == answer_id))).scalar_one_or_none()
     if answer is None:
         raise HTTPException(status_code=404, detail="Answer not found")
-    related_question = (await db.execute(select(Question).where(Question.id == answer.question_id))).scalar_one_or_none()
+    related_question = (await db.execute(select(Question).where(Question.id == answer.question_id))).scalar_one()
     if current_user.id != related_question.author_id:
         raise HTTPException(status_code=403, detail="Not enough permissions")
+    if answer.author_id == current_user.id:
+        raise HTTPException(status_code=403, detail="You cannot accept your own answer")
     accepted_answer = (await db.execute(select(Answer).where(Answer.question_id == answer.question_id, Answer.is_accepted == True))).scalar_one_or_none()
     if accepted_answer is not None and accepted_answer.id != answer.id:
         accepted_answer.is_accepted = False

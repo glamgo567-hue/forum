@@ -1,8 +1,8 @@
 async def test_successful_registration(client):
     payload = {"username": "glamgo2",
                "email": "glamgo@gmail.com",
-               "password": "1",
-               "confirm_password": "1"}
+               "password": "111111111",
+               "confirm_password": "111111111"}
     response = await client.post("/auth/register", json=payload)
     assert response.status_code == 201
     data = response.json()
@@ -16,36 +16,36 @@ async def test_successful_registration(client):
 async def test_successful_login(client):
     payload_auth = {"username": "glamgo2",
                     "email": "glamgo@gmail.com",
-                    "password": "1",
-                    "confirm_password": "1"}
+                    "password": "111111111",
+                    "confirm_password": "111111111"}
     response_auth = await client.post("/auth/register", json=payload_auth)
     assert response_auth.status_code == 201
 
     payload_log1 = {"username":"glamgo2",
-                    "password":"1"}
+                    "password":"111111111"}
     response_log1 = await client.post("/auth/login", data=payload_log1)
     assert response_log1.status_code == 200
 
     payload_log2 = {"username":"glamgo2",
-                    "password":"2"}
+                    "password":"222222222"}
     response_log2 = await client.post("/auth/login", data=payload_log2)
     assert response_log2.status_code == 401
 
     payload_log3 = {"username":"glamgo3",
-                    "password":"1"}
+                    "password":"111111111"}
     response_log3 = await client.post("/auth/login", data=payload_log3)
     assert response_log3.status_code == 401
 
 async def test_successful_me(client):
     payload_auth = {"username": "glamgo2",
                     "email": "glamgo@gmail.com",
-                    "password": "1",
-                    "confirm_password": "1"}
+                    "password": "111111111",
+                    "confirm_password": "111111111"}
     response_auth = await client.post("/auth/register", json=payload_auth)
     assert response_auth.status_code == 201
 
     payload_log1 = {"username":"glamgo2",
-                    "password":"1"}
+                    "password":"111111111"}
     response_log1 = await client.post("/auth/login", data=payload_log1)
     assert response_log1.status_code == 200
 

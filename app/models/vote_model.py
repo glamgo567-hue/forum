@@ -10,8 +10,8 @@ class Vote(Base):
     value: Mapped[int]
 
     user_id: Mapped[int] = mapped_column(ForeignKey("users.id"))
-    question_id: Mapped[int | None] = mapped_column(ForeignKey("questions.id", ondelete="CASCADE"))
-    answer_id: Mapped[int | None] = mapped_column(ForeignKey("answers.id", ondelete="CASCADE"))
+    question_id: Mapped[int | None] = mapped_column(ForeignKey("questions.id", ondelete="CASCADE"), index=True)
+    answer_id: Mapped[int | None] = mapped_column(ForeignKey("answers.id", ondelete="CASCADE"), index=True)
 
     __table_args__ = (Index("ix_vote_user_question_unique",
                             "user_id", "question_id",

@@ -1,13 +1,13 @@
 from datetime import datetime
 
-from pydantic import BaseModel, EmailStr, model_validator
+from pydantic import BaseModel, EmailStr, Field, model_validator
 
 
 class UserRegister(BaseModel):
-    username: str
+    username: str = Field(min_length=3, max_length=100)
     email: EmailStr
-    password: str
-    confirm_password: str
+    password: str = Field(min_length=8)
+    confirm_password: str = Field(min_length=8)
 
     @model_validator(mode="after")
     def password_match(self):

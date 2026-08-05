@@ -13,9 +13,9 @@ from app.services.reputation_helpers import (
     get_reputation_delta,
 )
 
-q_vote_router = APIRouter(prefix="/questions/{question_id}/vote", tags=["question_votes"])
+q_vote_router = APIRouter(prefix="/questions/{question_id}", tags=["question_votes"])
 
-@q_vote_router.post("/", response_model=VoteRead, status_code=status.HTTP_201_CREATED)
+@q_vote_router.post("/vote", response_model=VoteRead, status_code=status.HTTP_201_CREATED)
 async def create_vote(question_id: int,
                       vote_data: VoteIn,
                       current_user: User = Depends(get_current_user),
@@ -23,9 +23,11 @@ async def create_vote(question_id: int,
     question = (await db.execute(select(Question).where(Question.id == question_id))).scalar_one_or_none()
     if question is None:
         raise HTTPException(status_code=404, detail="Question not found")
+    if question.author_id == current_user.id:
+        raise HTTPException(status_code=403, detail="You cannot vote on your own question")
     vote = (await db.execute(select(Vote).where(Vote.user_id == current_user.id, Vote.question_id == question_id,))).scalar_one_or_none()
     if vote is not None:
-        raise HTTPException(status_code=409, detail="Have you already voted")
+        raise HTTPException(status_code=409, detail="You have already voted")
     new_vote = Vote(value=vote_data.value,
                     user_id=current_user.id,
                     question_id=question_id)
@@ -36,7 +38,7 @@ async def create_vote(question_id: int,
     await db.refresh(new_vote)
     return new_vote
 
-@q_vote_router.patch("/", response_model=VoteRead)
+@q_vote_router.patch("/vote", response_model=VoteRead)
 async def patch_vote(question_id: int,
                      vote_data: VoteIn,
                      current_user: User = Depends(get_current_user),
@@ -56,7 +58,7 @@ async def patch_vote(question_id: int,
     await db.refresh(vote)
     return vote
 
-@q_vote_router.delete("/", status_code=status.HTTP_204_NO_CONTENT)
+@q_vote_router.delete("/vote", status_code=status.HTTP_204_NO_CONTENT)
 async def del_vote(question_id: int,
                    current_user: User = Depends(get_current_user),
                    db: AsyncSession = Depends(get_db)):

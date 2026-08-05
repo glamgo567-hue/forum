@@ -13,19 +13,21 @@ from app.services.reputation_helpers import (
     get_reputation_delta,
 )
 
-a_vote_router = APIRouter(prefix="/answers/{answer_id}/vote", tags=["answer_votes"])
+a_vote_router = APIRouter(prefix="/answers/{answer_id}", tags=["answer_votes"])
 
-@a_vote_router.post("/",response_model=VoteRead, status_code=status.HTTP_201_CREATED)
+@a_vote_router.post("/vote",response_model=VoteRead, status_code=status.HTTP_201_CREATED)
 async def create_vote(answer_id: int,
                       vote_data: VoteIn,
                       current_user: User = Depends(get_current_user),
                       db: AsyncSession = Depends(get_db)):
     answer = (await db.execute(select(Answer).where(Answer.id == answer_id))).scalar_one_or_none()
     if answer is None:
-        raise HTTPException(status_code=404, detail="Answer not found")
+            raise HTTPException(status_code=404, detail="Answer not found")
+    if answer.author_id == current_user.id:
+        raise HTTPException(status_code=403, detail="You cannot vote on your own answer")
     vote = (await db.execute(select(Vote).where(Vote.user_id == current_user.id, Vote.answer_id == answer_id,))).scalar_one_or_none()
     if vote is not None:
-        raise HTTPException(status_code=409, detail="Have you already voted")
+        raise HTTPException(status_code=409, detail="You have already voted")
     new_vote = Vote(value=vote_data.value,
                     user_id=current_user.id,
                     answer_id=answer_id)
@@ -36,7 +38,7 @@ async def create_vote(answer_id: int,
     await db.refresh(new_vote)
     return new_vote
 
-@a_vote_router.patch("/", response_model=VoteRead)
+@a_vote_router.patch("/vote", response_model=VoteRead)
 async def patch_vote(answer_id: int,
                      vote_data: VoteIn,
                      current_user: User = Depends(get_current_user),
@@ -56,7 +58,7 @@ async def patch_vote(answer_id: int,
     await db.refresh(vote)
     return vote
 
-@a_vote_router.delete("/", status_code=status.HTTP_204_NO_CONTENT)
+@a_vote_router.delete("/vote", status_code=status.HTTP_204_NO_CONTENT)
 async def del_vote(answer_id: int,
                    current_user: User = Depends(get_current_user),
                    db: AsyncSession = Depends(get_db)):
