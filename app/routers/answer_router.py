@@ -1,6 +1,7 @@
 from fastapi import APIRouter, Depends, HTTPException, Query, status
 from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
+from sqlalchemy.orm import selectinload
 
 from app.dependencies.auth import get_current_user, get_current_user_optional
 from app.dependencies.db import get_db
@@ -35,6 +36,7 @@ async def create_answer(answer_data: AnswerCreate,
                       body=new_answer.body,
                       is_accepted=new_answer.is_accepted,
                       created_at=new_answer.created_at,
+                      author_username=current_user.username,
                       author_id=new_answer.author_id,
                       question_id=new_answer.question_id,
                       score=0,
@@ -50,7 +52,7 @@ async def show_answers(question_id: int,
     if question is None:
         raise HTTPException(status_code=404, detail="Question not found")
 
-    answers = (await db.execute(select(Answer).where(Answer.question_id == question_id).order_by(Answer.is_accepted.desc(), Answer.created_at.asc(), Answer.id.asc()).offset(skip).limit(limit))).scalars().all()
+    answers = (await db.execute(select(Answer).options(selectinload(Answer.author)).where(Answer.question_id == question_id).order_by(Answer.is_accepted.desc(), Answer.created_at.asc(), Answer.id.asc()).offset(skip).limit(limit))).scalars().all()
     answer_ids = [a.id for a in answers]
 
     scores_dict = {answer_id: score for answer_id, score in (await db.execute(select(Vote.answer_id, func.coalesce(func.sum(Vote.value), 0)).where(Vote.answer_id.in_(answer_ids)).group_by(Vote.answer_id))).all()}
@@ -67,6 +69,7 @@ async def show_answers(question_id: int,
                                  is_accepted=answer.is_accepted,
                                  created_at=answer.created_at,
                                  author_id=answer.author_id,
+                                 author_username=answer.author.username,
                                  question_id=answer.question_id,
                                  score=scores_dict.get(answer.id, 0),
                                  my_vote=my_votes_dict.get(answer.id, None)))
@@ -93,6 +96,7 @@ async def patch_answer(answer_id: int,
                       body=answer.body,
                       is_accepted=answer.is_accepted,
                       created_at=answer.created_at,
+                      author_username=current_user.username,
                       author_id=answer.author_id,
                       question_id=answer.question_id,
                       score=score,
@@ -118,7 +122,7 @@ async def del_answer(answer_id: int,
 async def accept_answer(answer_id: int,
                        current_user: User = Depends(get_current_user),
                        db: AsyncSession = Depends(get_db)):
-    answer = (await db.execute(select(Answer).where(Answer.id == answer_id))).scalar_one_or_none()
+    answer = (await db.execute(select(Answer).options(selectinload(Answer.author)).where(Answer.id == answer_id))).scalar_one_or_none()
     if answer is None:
         raise HTTPException(status_code=404, detail="Answer not found")
     related_question = (await db.execute(select(Question).where(Question.id == answer.question_id))).scalar_one()
@@ -140,6 +144,7 @@ async def accept_answer(answer_id: int,
                       body=answer.body,
                       is_accepted=answer.is_accepted,
                       created_at=answer.created_at,
+                      author_username=answer.author.username,
                       author_id=answer.author_id,
                       question_id=answer.question_id,
                       score=score,

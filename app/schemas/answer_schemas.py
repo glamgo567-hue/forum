@@ -12,6 +12,7 @@ class AnswerRead(BaseModel):
     is_accepted: bool
     created_at: datetime
     author_id: int
+    author_username: str
     question_id: int
     score: int
     my_vote: int | None = None  

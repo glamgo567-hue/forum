@@ -44,7 +44,9 @@ async def create_question(quest_data: QuestionCreate,
                         title=new_question.title,
                         body=new_question.body,
                         author_id=new_question.author_id,
+                        author_username=current_user.username,
                         created_at=new_question.created_at,
+                        answer_count=0,
                         tags=new_question.tags,
                         score=0,
                         my_vote=None)
@@ -55,7 +57,7 @@ async def show_questions(skip: int = Query(0, ge=0),
                          tag: str | None = None,
                          current_user: User | None = Depends(get_current_user_optional),
                          db: AsyncSession = Depends(get_db)):
-    query = select(Question).options(selectinload(Question.tags))
+    query = select(Question).options(selectinload(Question.tags), selectinload(Question.author))
     if tag is not None:
         query = query.join(Question.tags).where(Tag.name == tag)
     query = query.order_by(Question.created_at.desc(), Question.id.desc())
@@ -65,6 +67,8 @@ async def show_questions(skip: int = Query(0, ge=0),
     question_ids = [q.id for q in questions]
 
     scores_dict = {question_id: score for question_id, score in (await db.execute(select(Vote.question_id, func.coalesce(func.sum(Vote.value), 0)).where(Vote.question_id.in_(question_ids)).group_by(Vote.question_id))).all()}
+
+    answer_counts_dict = {question_id: count for question_id, count in (await db.execute(select(Answer.question_id, func.count(Answer.id)).where(Answer.question_id.in_(question_ids)).group_by(Answer.question_id))).all()}
 
     if current_user is None:
         my_votes_dict = {}
@@ -77,7 +81,9 @@ async def show_questions(skip: int = Query(0, ge=0),
                                    title=question.title,
                                    body=question.body,
                                    author_id=question.author_id,
+                                   author_username=question.author.username,
                                    created_at=question.created_at,
+                                   answer_count=answer_counts_dict.get(question.id, 0),
                                    tags=question.tags,
                                    score=scores_dict.get(question.id, 0),
                                    my_vote=my_votes_dict.get(question.id, None)))
@@ -87,9 +93,11 @@ async def show_questions(skip: int = Query(0, ge=0),
 async def show_question(question_id: int,
                         current_user: User | None = Depends(get_current_user_optional), 
                         db: AsyncSession = Depends(get_db)):
-    question = (await db.execute(select(Question).options(selectinload(Question.tags)).where(Question.id == question_id))).scalar_one_or_none()
+    question = (await db.execute(select(Question).options(selectinload(Question.tags), selectinload(Question.author)).where(Question.id == question_id))).scalar_one_or_none()
     if question is None:
         raise HTTPException(status_code=404, detail="Question not found")
+
+    answer_count = (await db.execute(select(func.count(Answer.id)).where(Answer.question_id == question_id))).scalar_one()
 
     score = await get_score(db, question_id=question_id)
 
@@ -99,7 +107,9 @@ async def show_question(question_id: int,
                         title=question.title,
                         body=question.body,
                         author_id=question.author_id,
+                        author_username=question.author.username,
                         created_at=question.created_at,
+                        answer_count=answer_count,
                         tags=question.tags,
                         score=score,
                         my_vote=my_vote)
@@ -117,6 +127,9 @@ async def patch_question(question_id: int,
     update_quest_data = quest_data.model_dump(exclude_unset=True)
     for key, value in update_quest_data.items():
         setattr(question, key, value)
+
+    answer_count = (await db.execute(select(func.count(Answer.id)).where(Answer.question_id == question_id))).scalar_one()
+    
     score = await get_score(db, question_id=question_id)
     
     my_vote = await get_my_vote(db, current_user.id, question_id=question_id)
@@ -127,7 +140,9 @@ async def patch_question(question_id: int,
                         title=question.title,
                         body=question.body,
                         author_id=question.author_id,
+                        author_username=current_user.username,
                         created_at=question.created_at,
+                        answer_count=answer_count,
                         tags=question.tags,
                         score=score,
                         my_vote=my_vote)

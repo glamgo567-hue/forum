@@ -16,6 +16,7 @@ class UserRegister(BaseModel):
         return self
 
 class UserRead(BaseModel):
+    id: int
     username: str
     email: EmailStr
     reputation: int

@@ -34,7 +34,7 @@ async def db_schema():
 
 @pytest.fixture
 async def client(db_schema):
-    async with AsyncClient(transport=ASGITransport(app=app),base_url="http://test") as ac:
+    async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test/api") as ac:
         yield ac
 
 @pytest.fixture

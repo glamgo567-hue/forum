@@ -15,7 +15,9 @@ class QuestionRead(BaseModel):
     title: str
     body: str
     author_id: int
+    author_username: str
     created_at: datetime
+    answer_count: int = 0
     tags: list[TagOut] = []
     score: int
     my_vote: int | None = None  
